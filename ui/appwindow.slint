@@ -1,0 +1,264 @@
+import { Button, VerticalBox, ListView, HorizontalBox, TextEdit, LineEdit } from "std-widgets.slint";
+
+enum FurnitureItemTypes {Room, Bed}
+
+struct FurnitureItemStats {
+    img: image,
+    type: FurnitureItemTypes,
+    geometry-properties : [length], /* height, width, min_x, max_x, min_y, max_y */ 
+}
+
+// component AppButton inherits Rectangle {
+//     in-out property text <=> txt.text;
+
+//     callback clicked <=> touch.clicked;
+    
+//     // Will be done with init
+    
+//     img := Image {
+
+//     }
+//     txt := Text {
+//         x: (parent.width - self.width)/2;
+//         y: (parent.height - self.height)/2;
+//     }
+//     touch := TouchArea { }
+// }
+
+component FurnitureItem inherits Rectangle {
+    in-out property <FurnitureItemStats> item;
+    in-out property <float> value_x;
+    in-out property <float> value_y;
+    // geometry-properties : height, width, minX, maxX, minY, maxY
+    // init => {debug(item.geometry-properties[0], item.geometry-properties[1], item.geometry-properties[2], item.geometry-properties[3], item.geometry-properties[4], item.geometry-properties[5])}
+
+    height: item.geometry-properties[0];
+    width: item.geometry-properties[1];
+    x: (self.item.type==FurnitureItemTypes.Room)? (480px - self.width)/2 : 
+        min(item.geometry-properties[3] , 
+            max(item.geometry-properties[2] , value_x * 1px));
+    y: (self.item.type==FurnitureItemTypes.Room)? (480px - self.height)/2 : 
+        min(item.geometry-properties[5] , 
+            max(item.geometry-properties[4] , value_y * 1px));
+
+    img := Image {
+        height: 100%;
+        width: 100%;
+        source: root.item.img;
+    }
+    touch := TouchArea {
+        height: 100%;
+        width: 100%;
+        x: parent.x;
+        y: parent.y;
+
+        moved => {
+            if (self.pressed) {
+                root.value_x = max(0, min( 400, root.value_x + (self.mouse-x - self.pressed-x) * 400/root.width ));
+                root.value_y = max(0, min( 400, root.value_y + (self.mouse-y - self.pressed-y) * 400/root.height ));
+            }
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+
+    callback new-item(FurnitureItemTypes, string, string);
+
+    in-out property <[FurnitureItemStats]> active_items;
+    in-out property <string> hmmm_which_error_did_i_get: "";
+    in-out property <int> how_many_errors_did_i_get: 0; 
+    
+    width: 800px;
+    height: 600px;
+    background: white;
+    title: "Room designer";
+
+    popup_room := Rectangle {
+        in-out property <FurnitureItemTypes> type;
+        
+        width: 400px;
+        height: 150px - 5px;
+        x: root.width/4;
+        y: root.height/4;
+        z: 2;
+        border-radius: 5px;
+        background: dimgray;
+        visible: false;
+        
+        GridLayout {
+            Text {
+                height: 40px;
+                text: "Enter size in meters";
+                font-size: 32px;
+                row: 0;
+                colspan: 2;
+            }
+            HorizontalLayout {
+                row: 1;
+                colspan: 2;
+                length := LineEdit {
+                    font-size: 32px;
+                    placeholder-text: "Length:";
+                }
+                width := LineEdit{
+                    font-size: 32px;
+                    placeholder-text: "Width:";
+                }
+            }
+            HorizontalLayout {
+                height: 40px;
+                row: 2;
+                colspan: 2;
+
+                create_sketch_button := Button {
+                    max-width: 200px;
+                    primary: true;
+                    text: "Create!";
+                    clicked => {
+                        new-item(popup-room.type, length.text, width.text); 
+                        length.text=""; width.text=""; 
+                        length.clear-focus(); width.clear-focus(); 
+                        popup_room.visible=false; }
+                }
+                exit_sketch_button := Button {
+                    primary: true;
+                    text: "Exit";
+                    clicked => {
+                        length.text=""; width.text=""; 
+                        length.clear-focus(); width.clear-focus(); 
+                        popup_room.visible=false; }
+                }
+            }
+        }
+    }
+
+    popup_error := Rectangle {
+        width: 300px;
+        height: 26px + 20px + 20px*root.how_many_errors_did_i_get;
+        x: root.width - self.width;
+        y: root.height - self.height;
+        z: 2;
+        background: #cccccc;
+        border-radius: 5px;
+        visible: root.hmmm_which_error_did_i_get!="";
+        
+        VerticalLayout {
+            y: 6px;
+            width: popup-error.width - 20px;
+            height: 20px*root.how_many_errors_did_i_get + 24px;
+        
+            Text {
+                height: 26px;
+                text: "Warning!";
+                font-size: 22px;
+            }
+            Rectangle {
+                background: popup-error.background.darker(2%);
+
+                Text {
+                    x: 10px;
+                    text: root.hmmm_which_error_did_i_get;
+                    font-size: 16px;
+                }
+            }
+        }
+        Image {
+            height: 21px;
+            width: 21px;
+            source: @image-url("../images/cross.png");
+            // colorize: red;
+            x: parent.width - self.width - 5px;
+            y: 5px;
+
+            close_error_button := Button {
+                height: 100%;
+                width: 100%;
+                clicked => { root.hmmm_which_error_did_i_get=""; }
+            }
+        }
+    }
+    
+    // HorizontalLayout {
+    //     list_area_border := Rectangle {
+    //         width: list_area_touch-area.has-hover? 403px : 33px;
+    //         background: dimgray;
+    //         border-top-right-radius: 3px;
+    //         border-bottom-right-radius: 3px;
+            
+    //         list_area := Rectangle {
+    //             x: 0;
+    //             width: list_area_touch_area.has-hover? 400px : 30px;
+    //             height: parent.height - 6px;
+    //             background: white;
+        
+    //             new_item_button := Button {
+    //                 y: list-area.height - 10px - self.height;
+    //                 primary: true;
+    //                 visible: list-area-touch-area.has-hover;
+    //                 text: "New item";
+
+    //                 clicked => { new_item_list.visible=true }
+    //             }
+    //             list_area_touch_area := TouchArea {
+    //                 width: 100%;    
+    //                 height: 100%;
+    //             }   
+    //         }
+    //     }
+    
+        work_area := HorizontalLayout {
+            z: 1;
+            padding: 10px;
+
+            VerticalLayout {
+                width: 150px;
+
+                VerticalLayout {
+                    height: 370px;
+                    spacing: 10px;
+
+                    new_sketch_popup_button := Button {
+                        width: 140px;
+                        height: 40px;
+                        primary: true;
+                        text: "New sketch";
+
+                        clicked => { popup_room.visible=true; popup-room.type=FurnitureItemTypes.Room }
+                    }
+                    new_item_list_button := Button {
+                        width: 140px;
+                        height: 40px;
+                        visible: root.active_items.length!=0;
+                        primary: true;
+                        text: "New item";
+
+                        clicked => { popup_room.visible=true; popup-room.type=FurnitureItemTypes.Bed }
+                    }
+                }
+                Image {
+                    x: 20px;
+                    width: 120px;
+                    height: 120px;
+                    source: @image-url("../images/axes.png");
+                }
+            }
+
+            sketch := Rectangle{
+                height: 480px;
+                width: 480px;
+                border-width: 1px;
+                border-color: blue;
+
+                for item[i] in root.active_items : 
+                    FurnitureItem {
+                        item: item;
+                    }
+            }
+
+            item_properties := Rectangle {
+
+            }
+        }
+    // }
+}
