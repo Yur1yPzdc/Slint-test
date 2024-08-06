@@ -179,86 +179,57 @@ export component AppWindow inherits Window {
         }
     }
     
-    // HorizontalLayout {
-    //     list_area_border := Rectangle {
-    //         width: list_area_touch-area.has-hover? 403px : 33px;
-    //         background: dimgray;
-    //         border-top-right-radius: 3px;
-    //         border-bottom-right-radius: 3px;
-            
-    //         list_area := Rectangle {
-    //             x: 0;
-    //             width: list_area_touch_area.has-hover? 400px : 30px;
-    //             height: parent.height - 6px;
-    //             background: white;
-        
-    //             new_item_button := Button {
-    //                 y: list-area.height - 10px - self.height;
-    //                 primary: true;
-    //                 visible: list-area-touch-area.has-hover;
-    //                 text: "New item";
+    work_area := HorizontalLayout {
+        z: 1;
+        padding: 10px;
 
-    //                 clicked => { new_item_list.visible=true }
-    //             }
-    //             list_area_touch_area := TouchArea {
-    //                 width: 100%;    
-    //                 height: 100%;
-    //             }   
-    //         }
-    //     }
-    
-        work_area := HorizontalLayout {
-            z: 1;
-            padding: 10px;
+        VerticalLayout {
+            width: 150px;
 
             VerticalLayout {
-                width: 150px;
+                height: 370px;
+                spacing: 10px;
 
-                VerticalLayout {
-                    height: 370px;
-                    spacing: 10px;
+                new_sketch_popup_button := Button {
+                    width: 140px;
+                    height: 40px;
+                    primary: true;
+                    text: "New sketch";
 
-                    new_sketch_popup_button := Button {
-                        width: 140px;
-                        height: 40px;
-                        primary: true;
-                        text: "New sketch";
-
-                        clicked => { popup_room.visible=true; popup-room.type=FurnitureItemTypes.Room }
-                    }
-                    new_item_list_button := Button {
-                        width: 140px;
-                        height: 40px;
-                        visible: root.active_items.length!=0;
-                        primary: true;
-                        text: "New item";
-
-                        clicked => { popup_room.visible=true; popup-room.type=FurnitureItemTypes.Bed }
-                    }
+                    clicked => { popup_room.visible=true; popup-room.type=FurnitureItemTypes.Room }
                 }
-                Image {
-                    x: 20px;
-                    width: 120px;
-                    height: 120px;
-                    source: @image-url("../images/axes.png");
+                new_item_list_button := Button {
+                    width: 140px;
+                    height: 40px;
+                    visible: root.active_items.length!=0;
+                    primary: true;
+                    text: "New item";
+
+                    clicked => { popup_room.visible=true; popup-room.type=FurnitureItemTypes.Bed }
                 }
             }
-
-            sketch := Rectangle{
-                height: 480px;
-                width: 480px;
-                border-width: 1px;
-                border-color: blue;
-
-                for item[i] in root.active_items : 
-                    FurnitureItem {
-                        item: item;
-                    }
-            }
-
-            item_properties := Rectangle {
-
+            Image {
+                x: 20px;
+                width: 120px;
+                height: 120px;
+                source: @image-url("../images/axes.png");
             }
         }
-    // }
+
+        sketch := Rectangle{
+            height: 480px;
+            width: 480px;
+            border-width: 1px;
+            border-color: blue;
+
+            for item[i] in root.active_items : 
+                FurnitureItem {
+                    item: item;
+                }
+        }
+
+        item_properties := Rectangle {
+
+        }
+    }
 }
