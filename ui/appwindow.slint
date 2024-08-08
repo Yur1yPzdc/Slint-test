@@ -1,11 +1,11 @@
-import { Button, VerticalBox, ListView, HorizontalBox, TextEdit, LineEdit } from "std-widgets.slint";
+import { Button, VerticalBox, ListView, HorizontalBox, TextEdit, LineEdit, ComboBox, ScrollView } from "std-widgets.slint";
 
 enum FurnitureItemTypes {Room, Bed}
 
 struct FurnitureItemStats {
     img: image,
     type: FurnitureItemTypes,
-    geometry-properties : [length], /* height, width, min_x, max_x, min_y, max_y */ 
+    geometry-properties : [length], /* horizontal, vertical, min_x, max_x, min_y, max_y */ 
 }
 
 // component AppButton inherits Rectangle {
@@ -27,19 +27,25 @@ struct FurnitureItemStats {
 
 component FurnitureItem inherits Rectangle {
     in-out property <FurnitureItemStats> item;
+    in-out property <int> index;
     in-out property <float> value_x;
     in-out property <float> value_y;
-    // geometry-properties : height, width, minX, maxX, minY, maxY
+
+    callback active <=> touch.clicked;
+    // geometry-properties : horizontal, vertical, minX, maxX, minY, maxY
     // init => {debug(item.geometry-properties[0], item.geometry-properties[1], item.geometry-properties[2], item.geometry-properties[3], item.geometry-properties[4], item.geometry-properties[5])}
 
-    height: item.geometry-properties[0];
-    width: item.geometry-properties[1];
+    width: item.geometry-properties[0];
+    height: item.geometry-properties[1];
     x: (self.item.type==FurnitureItemTypes.Room)? (480px - self.width)/2 : 
-        min(item.geometry-properties[3] , 
-            max(item.geometry-properties[2] , value_x * 1px));
+        min(item.geometry-properties[3]-6px , 
+            max(item.geometry-properties[2]+6px , value_x * 1px));
     y: (self.item.type==FurnitureItemTypes.Room)? (480px - self.height)/2 : 
-        min(item.geometry-properties[5] , 
-            max(item.geometry-properties[4] , value_y * 1px));
+        min(item.geometry-properties[5]-6px , 
+            max(item.geometry-properties[4]+6px , value_y * 1px));
+        
+    border-color: black;
+    border-width: item.type==FurnitureItemTypes.Room? 6px : 0px;
 
     img := Image {
         height: 100%;
@@ -47,18 +53,38 @@ component FurnitureItem inherits Rectangle {
         source: root.item.img;
     }
     touch := TouchArea {
-        height: 100%;
-        width: 100%;
-        x: parent.x;
-        y: parent.y;
-
         moved => {
-            if (self.pressed) {
-                root.value_x = max(0, min( 400, root.value_x + (self.mouse-x - self.pressed-x) * 400/root.width ));
-                root.value_y = max(0, min( 400, root.value_y + (self.mouse-y - self.pressed-y) * 400/root.height ));
+            if (self.pressed && self.has-hover) {
+                debug(root.x, root.y);
+                root.value_x = max(0, min( 400, root.value_x + (self.mouse-x - self.pressed-x)/0.8px ));
+                root.value_y = max(0, min( 400, root.value_y + (self.mouse-y - self.pressed-y)/0.8px ));
             }
         }
     }
+}
+
+component StatsList inherits Rectangle {
+    in-out property <int> which_index_is_active;
+    in-out property <int> which_index_am_i;
+    in-out property <FurnitureItemTypes> what_type_am_i;
+
+    background: gray;
+    visible: which_index_am_i==which_index_is_active;
+
+    // if what_type_am_i==FurnitureItemTypes.Bed : 
+    //     VerticalLayout {
+    //         HorizontalLayout {
+    //             Text {
+    //                 text: "Facing direction";
+    //             }
+    //             ComboBox {
+    //                 model: ["Up", "Down", "Left", "Right"];
+    //                 current-value: "Up";
+    //                 current-index: 0;
+    //                 selected => {}
+    //             }
+    //         }
+    //     }
 }
 
 export component AppWindow inherits Window {
@@ -68,6 +94,7 @@ export component AppWindow inherits Window {
     in-out property <[FurnitureItemStats]> active_items;
     in-out property <string> hmmm_which_error_did_i_get: "";
     in-out property <int> how_many_errors_did_i_get: 0; 
+    in-out property <int> current_active_index;
     
     width: 800px;
     height: 600px;
@@ -167,7 +194,6 @@ export component AppWindow inherits Window {
             height: 21px;
             width: 21px;
             source: @image-url("../images/cross.png");
-            // colorize: red;
             x: parent.width - self.width - 5px;
             y: 5px;
 
@@ -178,44 +204,108 @@ export component AppWindow inherits Window {
             }
         }
     }
-    
+
+    items_list := Rectangle {
+        in-out property <FurnitureItemTypes> chosen_type;
+        x: 0;
+        z: 2;
+        width: 300px;
+        height: 600px;
+        background: lightgray;
+        visible: false;
+
+        Text {
+            width: 270px;
+            height: 40px;
+            y: 10px;
+            text: "Select an item";
+            font-size: 32px;
+        }
+        Rectangle {
+            width: 270px;
+            height: 480px;
+            y: 60px;
+            background: items-list.background.darker(10%);
+
+            items_list_list := ScrollView {
+                in-out property <int> chosen_index: -1;
+                width: 270px;
+                height: 480px;
+                viewport-height: 1000px;
+                for i[j] in [ 
+                    {name: "Bed", img: @image-url("../images/Bed.png"), t: FurnitureItemTypes.Bed},
+                    {name: "Bed", img: @image-url("../images/Bed.png"), t: FurnitureItemTypes.Bed},
+                    {name: "Bed", img: @image-url("../images/Bed.svg"), t: FurnitureItemTypes.Bed},
+                    {name: "Bed", img: @image-url("../images/Bed.png"), t: FurnitureItemTypes.Bed},
+                ] : list_item := Rectangle {
+                    width: 122px;
+                    height: 142px;
+                    x: 5px + 5px*mod(j, 2) + 120px*mod(j, 2);
+                    y: 5px + 5px*floor(j/2) + 140px*floor(j/2);
+                    background: chosen_index==j? items-list.background.darker(25%) : items-list.background.darker(10%);
+                    border-width: chosen_index==j? 1px : 0px;
+                    border-color: blue;
+                    
+                    Image {
+                        y: 1px;
+                        width: 120px;
+                        height: 120px;
+                        source: i.img;
+                        TouchArea { clicked => { chosen_type=i.t; chosen_index=j; } }
+                    }
+                    Text {
+                        y: 121px;
+                        width: 120px;
+                        text: i.name;
+                        font-size: 20px;
+                    }
+                }
+            }
+        }
+        HorizontalLayout {
+            x: 20px;
+            y: 550px;
+            spacing: 20px;
+            Button {
+                width: 120px;
+                height: 40px;
+                primary: true;
+            }
+            Button {
+                width: 120px;
+                height: 40px;
+                primary: true;
+            }
+        }
+    }
+
     work_area := HorizontalLayout {
         z: 1;
         padding: 10px;
 
-        VerticalLayout {
+        buttons_on_the_left := VerticalLayout {
             width: 150px;
+            height: 370px;
+            spacing: 10px;
 
-            VerticalLayout {
-                height: 370px;
-                spacing: 10px;
+            new_sketch_popup_button := Button {
+                width: 140px;
+                height: 40px;
+                primary: true;
+                text: "New sketch";
 
-                new_sketch_popup_button := Button {
-                    width: 140px;
-                    height: 40px;
-                    primary: true;
-                    text: "New sketch";
-
-                    clicked => { popup_room.visible=true; popup-room.type=FurnitureItemTypes.Room }
-                }
-                new_item_list_button := Button {
-                    width: 140px;
-                    height: 40px;
-                    visible: root.active_items.length!=0;
-                    primary: true;
-                    text: "New item";
-
-                    clicked => { popup_room.visible=true; popup-room.type=FurnitureItemTypes.Bed }
-                }
+                clicked => { popup-room.visible=true; popup-room.type=FurnitureItemTypes.Room; current_active_index=-1 }
             }
-            Image {
-                x: 20px;
-                width: 120px;
-                height: 120px;
-                source: @image-url("../images/axes.png");
+            new_item_list_button := Button {
+                width: 140px;
+                height: 40px;
+                visible: root.active_items.length!=0;
+                primary: true;
+                text: "New item";
+
+                clicked => { items-list.visible=true; buttons-on-the-left.width=300px; current_active_index=-1 }
             }
         }
-
         sketch := Rectangle{
             height: 480px;
             width: 480px;
@@ -225,11 +315,36 @@ export component AppWindow inherits Window {
             for item[i] in root.active_items : 
                 FurnitureItem {
                     item: item;
+                    index: i;
+                    active => {
+                        current_active_index=(self.item.type!=FurnitureItemTypes.Room)? self.index : -1;
+                        debug(self.index);
+                    }
                 }
         }
-
-        item_properties := Rectangle {
-
+        info_area := Rectangle {
+            width: 140px;
+            height: 140px;
+            visible: true;
+  
+            axes := Rectangle {
+                x: 0px;
+                y: 0px;
+                Image {
+                    x: 20px;
+                    y: 0px;
+                    width: popup-room.visible? 120px : 60px;
+                    height: popup-room.visible? 120px : 60px;
+                    source: @image-url("../images/axes.png");
+                }
+            }
+            for i in root.active_items.length :
+                StatsList {
+                    which_index_is_active: current_active_index;
+                    which_index_am_i: i;
+                    what_type_am_i: root.active_items[i].type;
+                    init => {debug(self.which_index_is_active, self.which_index_am_i, self.what_type_am_i);}
+                }
         }
     }
 }

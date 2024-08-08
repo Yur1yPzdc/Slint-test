@@ -76,7 +76,7 @@ fn main() -> Result<(), slint::PlatformError> {
         } else { 
        
         let (item_length_real, item_width_real) = (length.parse::<f32>().unwrap(),width.parse::<f32>().unwrap());
-        let gmtr_props:[f32;6]; /* height, width, min_x, max_x, min_y, max_y */
+        let gmtr_props:[f32;6]; /* horizontal, vertical, min_x, max_x, min_y, max_y */
         let ratio:f32;
             
         let item_length:f32; let item_width:f32;
@@ -87,7 +87,7 @@ fn main() -> Result<(), slint::PlatformError> {
             } else {
                 item_length = 400.0*ratio; item_width = 400.0;
             }
-            gmtr_props = [item_length, item_width, (480.0-item_width)/2.0, (480.0-item_width)/2.0, (480.0-item_length)/2.0, (480.0-item_length)/2.0,];
+            gmtr_props = [item_length, item_width, (480.0-item_length)/2.0, (480.0-item_length)/2.0, (480.0-item_width)/2.0, (480.0-item_width)/2.0,];
 
             real_values_stored.clear();
             items_props_list.clear();
@@ -106,8 +106,8 @@ fn main() -> Result<(), slint::PlatformError> {
             let room_x_offset = room_props[2];
             let room_y_offset = room_props[4];
             gmtr_props = [item_length, item_width, 
-                          room_x_offset, (room_x_offset-item_width+room_props[1]), 
-                          room_y_offset, (room_y_offset-item_length+room_props[0])];
+                          room_x_offset, (room_x_offset-item_length+room_props[0]), 
+                          room_y_offset, (room_y_offset-item_width+room_props[1])];
         }
         let item = FurnitureItemStats{
             geometry_properties: gmtr_props.into(),
