@@ -6,57 +6,56 @@ slint::include_modules!();
 fn type_to_img(r#type: FurnitureItemTypes) -> Box<Path> {
     match r#type {
         FurnitureItemTypes::Room => PathBuf::from("./images/Room.png").into_boxed_path(),
-        FurnitureItemTypes::Bed => PathBuf::from("./images/Bed.png").into_boxed_path()
+        FurnitureItemTypes::Bed => PathBuf::from("./images/Bed.png").into_boxed_path(),
+        FurnitureItemTypes::Window => PathBuf::from("./images/Window.png").into_boxed_path(),
+        FurnitureItemTypes::Wall => PathBuf::from("./images/Wall.png").into_boxed_path(),
+        FurnitureItemTypes::Table => PathBuf::from("./images/Table.png").into_boxed_path(),
+        FurnitureItemTypes::Chair => PathBuf::from("./images/Chair.png").into_boxed_path(),
+        FurnitureItemTypes::Closet => PathBuf::from("./images/Closet.png").into_boxed_path(),
     }
 }
 
-fn check_value_correct(val_res_: &(&str, &str, Result<f32, ParseFloatError>), show_prints: bool) -> f32 {
-    let (content, name, val_res) = val_res_;
-    if let Some(_) = val_res.as_ref().err() {
-        if show_prints {
-            match content.is_empty() {
-                true => println!("Error: {name} shouldn't be empty!"),
-                false => println!("Error: {name} should be a number!")
-            }
-        }
-        return -1.0
-    } else if val_res.as_ref().is_ok_and(|x| *x<=0.0) {
-        if show_prints {println!("Error: {name} should be positive!");}
-        return -1.0
-    } else {
-        return *val_res.as_ref().unwrap()
-    }
+fn check_value_incorrect(val_res_: &(&str, &str, Result<f32, ParseFloatError>), index: usize, limits: Option<&(f32, f32)>) -> bool {
+    let (_, _, val_res) = val_res_;
+    if val_res.as_ref().is_err() {
+        return true
+    } else if val_res.as_ref().is_ok_and(|&x| x<=0.0) {
+        return true
+    } else if limits.is_some() && index==0 && val_res.as_ref().is_ok_and(|&x| x>limits.unwrap().0){
+        return true
+    } else if limits.is_some() && index==1 && val_res.as_ref().is_ok_and(|&x| x>limits.unwrap().1){
+        return true
+    } else { return false }
 }
 
-fn catch_value_error(val_res_: &(&str, &str, Result<f32, ParseFloatError>)) -> String {
+fn catch_create_error(val_res_: &(&str, &str, Result<f32, ParseFloatError>)) -> String {
     let (content, name, val_res) = val_res_;
-    if let Some(_) = val_res.as_ref().err() {
+    if val_res.as_ref().is_err() {
         match content.is_empty() {
             true => format!("Error: {name} shouldn't be empty!"),
             false => format!("Error: {name} should be a number!")
         }
-    } else {
+    } else if val_res.as_ref().is_ok_and(|&x| x<=0.0) {
         format!("Error: {name} should be positive!")
+    } else {
+        format!("Error: {name} exceeds room limits!")
     } 
 }
 
-fn check_all_value_correct(values: Vec<(&str, &str, Result<f32, ParseFloatError>)>) -> bool {
-    values.iter().map(|x| check_value_correct(x, false)).fold(true, |i, x| i && (x>0.0))
-}
-
-fn which_errors(values: Vec<(&str, &str, Result<f32, ParseFloatError>)>) -> Vec<String> {
-    values.iter()
-    .filter(|x| check_value_correct(*x, false)==-1.0)
-    .map(|x| catch_value_error(x))
-    .collect()
+fn which_errors(values: [(&str, &str, Result<f32, ParseFloatError>);2], limits: Option<&(f32, f32)>) -> Option<Vec<String>> {
+    let output = values.iter().enumerate()
+    .filter(|&(i, x)| check_value_incorrect(x, i, limits))
+    .map(|(_, x)| catch_create_error(x))
+    .collect::<Vec<String>>();
+    if output.is_empty() {None} else {Some(output)}
 }
 
 fn main() -> Result<(), slint::PlatformError> {
     let ui = AppWindow::new()?;
     let ui_handle = ui.as_weak();
 
-    let mut items_props_list:Vec<[f32;6]> = Vec::new();
     let mut items_list:Vec<FurnitureItemStats> = Vec::new();
+    let mut items_properties_list:Vec<[f32;6]> = Vec::new();
     let mut real_values_stored:Vec<(f32, f32)> = Vec::new();
 
     ui.on_new_item(move |t, x, y| {
@@ -64,13 +63,11 @@ fn main() -> Result<(), slint::PlatformError> {
         let length = x.trim().replace(",", ".");
         let width = y.trim().replace(",", ".");
         let value_checker = [
-            (&length[..], stringify!(length), length.parse::<f32>()), 
-            (&width[..], stringify!(width), width.parse::<f32>())
+            (length.as_str(), "length", length.parse::<f32>()), 
+            (width.as_str(), "width", width.parse::<f32>())
             ];
 
-        if !check_all_value_correct(value_checker.to_vec())
-        {
-            let recieved_errors = which_errors(value_checker.to_vec());
+        if let Some(recieved_errors) = which_errors(value_checker, real_values_stored.get(0)) {    
             ui.set_how_many_errors_did_i_get((recieved_errors.len() as i32).into());
             ui.set_hmmm_which_error_did_i_get(recieved_errors.join("\n").into());
         } else { 
@@ -90,7 +87,7 @@ fn main() -> Result<(), slint::PlatformError> {
             gmtr_props = [item_length, item_width, (480.0-item_length)/2.0, (480.0-item_length)/2.0, (480.0-item_width)/2.0, (480.0-item_width)/2.0,];
 
             real_values_stored.clear();
-            items_props_list.clear();
+            items_properties_list.clear();
             items_list.clear();
         } else { /* Уже есть Room */
             let (room_length_real, room_width_real) = *real_values_stored.get(0).unwrap(); 
@@ -102,7 +99,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 item_length = 400.0*item_length_real/room_length_real*ratio;
                 item_width = 400.0*item_width_real/room_width_real;
             }
-            let room_props = *items_props_list.get(0).unwrap();
+            let room_props = *items_properties_list.get(0).unwrap();
             let room_x_offset = room_props[2];
             let room_y_offset = room_props[4];
             gmtr_props = [item_length, item_width, 
@@ -115,7 +112,7 @@ fn main() -> Result<(), slint::PlatformError> {
             img: Image::load_from_path(&type_to_img(t)).unwrap()
         };
         real_values_stored.push((item_length_real, item_width_real));
-        items_props_list.push(gmtr_props);
+        items_properties_list.push(gmtr_props);
         items_list.push(item);
 
         let new_active_items = Rc::new(VecModel::from(items_list.clone()));

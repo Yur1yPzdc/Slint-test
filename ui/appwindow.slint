@@ -1,6 +1,6 @@
 import { Button, VerticalBox, ListView, HorizontalBox, TextEdit, LineEdit, ComboBox, ScrollView } from "std-widgets.slint";
 
-enum FurnitureItemTypes {Room, Bed}
+enum FurnitureItemTypes {Room, Bed, Window, Wall, Table, Chair, Closet}
 
 struct FurnitureItemStats {
     img: image,
@@ -35,30 +35,37 @@ component FurnitureItem inherits Rectangle {
     // geometry-properties : horizontal, vertical, minX, maxX, minY, maxY
     // init => {debug(item.geometry-properties[0], item.geometry-properties[1], item.geometry-properties[2], item.geometry-properties[3], item.geometry-properties[4], item.geometry-properties[5])}
 
-    width: item.geometry-properties[0];
-    height: item.geometry-properties[1];
-    x: (self.item.type==FurnitureItemTypes.Room)? (480px - self.width)/2 : 
-        min(item.geometry-properties[3]-6px , 
-            max(item.geometry-properties[2]+6px , value_x * 1px));
-    y: (self.item.type==FurnitureItemTypes.Room)? (480px - self.height)/2 : 
-        min(item.geometry-properties[5]-6px , 
-            max(item.geometry-properties[4]+6px , value_y * 1px));
-        
     border-color: black;
     border-width: item.type==FurnitureItemTypes.Room? 6px : 0px;
+    width: item.geometry-properties[0]+2*self.border-width;
+    height: item.geometry-properties[1]+2*self.border-width;
 
+    x: (self.item.type==FurnitureItemTypes.Room)? 
+        (480px - self.width)/2 : 
+        (self.item.type==FurnitureItemTypes.Window)? 
+        min(item.geometry-properties[3]+6px, 
+            max(item.geometry-properties[2]-6px, value_x * 1px)) :
+        min(item.geometry-properties[3] , 
+            max(item.geometry-properties[2] , value_x * 1px));
+
+    y: (self.item.type==FurnitureItemTypes.Room)? 
+        (480px - self.height)/2 : 
+        (self.item.type==FurnitureItemTypes.Window)? 
+        min(item.geometry-properties[5]+6px, 
+            max(item.geometry-properties[4]-6px, value_y * 1px)) :
+        min(item.geometry-properties[5] , 
+            max(item.geometry-properties[4] , value_y * 1px));
+        
     img := Image {
         height: 100%;
         width: 100%;
         source: root.item.img;
     }
     touch := TouchArea {
-        moved => {
-            if (self.pressed && self.has-hover) {
-                debug(root.x, root.y);
-                root.value_x = max(0, min( 400, root.value_x + (self.mouse-x - self.pressed-x)/0.8px ));
-                root.value_y = max(0, min( 400, root.value_y + (self.mouse-y - self.pressed-y)/0.8px ));
-            }
+        moved => { if (self.pressed && self.has-hover) {
+            debug(root.x, root.y);
+            root.value_x = max(0, min( 400, root.value_x + (self.mouse-x - self.pressed-x)/0.8px ));
+            root.value_y = max(0, min( 400, root.value_y + (self.mouse-y - self.pressed-y)/0.8px )); }
         }
     }
 }
@@ -91,6 +98,7 @@ export component AppWindow inherits Window {
 
     callback new-item(FurnitureItemTypes, string, string);
 
+    in-out property <[length]> active_items_coords;
     in-out property <[FurnitureItemStats]> active_items;
     in-out property <string> hmmm_which_error_did_i_get: "";
     in-out property <int> how_many_errors_did_i_get: 0; 
@@ -101,7 +109,7 @@ export component AppWindow inherits Window {
     background: white;
     title: "Room designer";
 
-    popup_room := Rectangle {
+    popup_create := Rectangle {
         in-out property <FurnitureItemTypes> type;
         
         width: 400px;
@@ -138,23 +146,23 @@ export component AppWindow inherits Window {
                 row: 2;
                 colspan: 2;
 
-                create_sketch_button := Button {
+                create_button := Button {
                     max-width: 200px;
                     primary: true;
                     text: "Create!";
                     clicked => {
-                        new-item(popup-room.type, length.text, width.text); 
+                        new-item(popup_create.type, length.text, width.text); 
                         length.text=""; width.text=""; 
                         length.clear-focus(); width.clear-focus(); 
-                        popup_room.visible=false; }
+                        popup_create.visible=false; }
                 }
-                exit_sketch_button := Button {
+                exit_button := Button {
                     primary: true;
                     text: "Exit";
                     clicked => {
                         length.text=""; width.text=""; 
                         length.clear-focus(); width.clear-focus(); 
-                        popup_room.visible=false; }
+                        popup_create.visible=false; }
                 }
             }
         }
@@ -200,7 +208,7 @@ export component AppWindow inherits Window {
             close_error_button := Button {
                 height: 100%;
                 width: 100%;
-                clicked => { root.hmmm_which_error_did_i_get=""; }
+                clicked => { root.hmmm_which_error_did_i_get="" }
             }
         }
     }
@@ -233,10 +241,12 @@ export component AppWindow inherits Window {
                 height: 480px;
                 viewport-height: 1000px;
                 for i[j] in [ 
-                    {name: "Bed", img: @image-url("../images/Bed.png"), t: FurnitureItemTypes.Bed},
-                    {name: "Bed", img: @image-url("../images/Bed.png"), t: FurnitureItemTypes.Bed},
-                    {name: "Bed", img: @image-url("../images/Bed.svg"), t: FurnitureItemTypes.Bed},
-                    {name: "Bed", img: @image-url("../images/Bed.png"), t: FurnitureItemTypes.Bed},
+                    {name: "Wall", img: @image-url("../images/list/Wall.svg"), t: FurnitureItemTypes.Wall},
+                    {name: "Window", img: @image-url("../images/list/Window.svg"), t: FurnitureItemTypes.Window},
+                    {name: "Bed", img: @image-url("../images/list/Bed.svg"), t: FurnitureItemTypes.Bed},
+                    {name: "Closet", img: @image-url("../images/list/Closet.svg"), t: FurnitureItemTypes.Closet},
+                    {name: "Table", img: @image-url("../images/list/Table.svg"), t: FurnitureItemTypes.Table},
+                    {name: "Chair", img: @image-url("../images/list/Chair.svg"), t: FurnitureItemTypes.Chair},
                 ] : list_item := Rectangle {
                     width: 122px;
                     height: 142px;
@@ -254,6 +264,7 @@ export component AppWindow inherits Window {
                         TouchArea { clicked => { chosen_type=i.t; chosen_index=j; } }
                     }
                     Text {
+                        x: 10px;
                         y: 121px;
                         width: 120px;
                         text: i.name;
@@ -270,11 +281,18 @@ export component AppWindow inherits Window {
                 width: 120px;
                 height: 40px;
                 primary: true;
+                text: "Create!";
+                clicked => { items-list.visible=false; buttons-on-the-left.width=150px;
+                    current_active_index=-1;
+                    popup-create.visible=true; popup-create.type=chosen_type }
             }
             Button {
                 width: 120px;
                 height: 40px;
                 primary: true;
+                text: "Cancel";
+                clicked => { items-list.visible=false; buttons-on-the-left.width=150px; 
+                    current_active_index=-1 }
             }
         }
     }
@@ -294,7 +312,8 @@ export component AppWindow inherits Window {
                 primary: true;
                 text: "New sketch";
 
-                clicked => { popup-room.visible=true; popup-room.type=FurnitureItemTypes.Room; current_active_index=-1 }
+                clicked => { current_active_index=-1; 
+                    popup_create.visible=true; popup_create.type=FurnitureItemTypes.Room }
             }
             new_item_list_button := Button {
                 width: 140px;
@@ -303,7 +322,8 @@ export component AppWindow inherits Window {
                 primary: true;
                 text: "New item";
 
-                clicked => { items-list.visible=true; buttons-on-the-left.width=300px; current_active_index=-1 }
+                clicked => { items-list.visible=true; buttons-on-the-left.width=300px; 
+                    current_active_index=-1 }
             }
         }
         sketch := Rectangle{
@@ -316,7 +336,7 @@ export component AppWindow inherits Window {
                 FurnitureItem {
                     item: item;
                     index: i;
-                    active => {
+                    active => { debug(active_items_coords[0], active_items_coords[1], active_items_coords[2], active_items_coords[3]); active_items_coords[i*2]=self.x; active_items_coords[i*2+1]=self.y; 
                         current_active_index=(self.item.type!=FurnitureItemTypes.Room)? self.index : -1;
                         debug(self.index);
                     }
@@ -333,8 +353,8 @@ export component AppWindow inherits Window {
                 Image {
                     x: 20px;
                     y: 0px;
-                    width: popup-room.visible? 120px : 60px;
-                    height: popup-room.visible? 120px : 60px;
+                    width: popup_create.visible? 120px : 60px;
+                    height: popup_create.visible? 120px : 60px;
                     source: @image-url("../images/axes.png");
                 }
             }
